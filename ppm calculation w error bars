@@ -1,0 +1,49 @@
+% Clear workspace and command window
+clear;
+clc;
+
+% Constants and Uncertainties
+a0 = 3.17e-9; % Bohr radius in meters (m)
+delta_a0 = 0.16e-9; % Uncertainty in Bohr radius in meters (m)
+
+Si_density_cm3 = 5.00e22; % Silicon number density in atoms/cm^3
+delta_Si_density_cm3 = 0.25e22; % Uncertainty in Si density in atoms/cm^3
+
+% Convert silicon density to atoms/m^3
+Si_density_m3 = Si_density_cm3 * 1e6; % Convert to atoms/m^3
+delta_Si_density_m3 = delta_Si_density_cm3 * 1e6; % Convert uncertainty to atoms/m^3
+
+% Step 1: Volume of the Bohr radius (sphere)
+V_Bohr = (4/3) * pi * a0^3; % Volume in cubic meters (m^3)
+% Uncertainty in Volume (using power rule for a^3)
+delta_V_Bohr = V_Bohr * 3 * (delta_a0 / a0); % Relative uncertainty multiplied by power
+
+% Step 2: Total number of Si atoms in the volume of Bohr radius
+total_atoms_in_Bohr = Si_density_m3 * V_Bohr;
+
+% Propagate uncertainty in total atoms using the product rule
+delta_total_atoms_in_Bohr = total_atoms_in_Bohr * sqrt( (delta_Si_density_m3 / Si_density_m3)^2 + (delta_V_Bohr / V_Bohr)^2 );
+
+% Step 3: Vary the number of 29Si atoms in the Bohr radius (nSi_in_Bohr)
+nSi_in_Bohr = 1:10; % Vary number of 29Si atoms (example range)
+concentration_ppm = (nSi_in_Bohr / total_atoms_in_Bohr) * 1e6; % Concentration in ppm
+
+% Step 4: Propagate uncertainty in concentration
+delta_concentration_ppm = concentration_ppm * (delta_total_atoms_in_Bohr / total_atoms_in_Bohr);
+
+% Step 5: Plot the graph with error bars
+figure;
+errorbar(nSi_in_Bohr, concentration_ppm, delta_concentration_ppm, 'o-', ...
+    'LineWidth', 1, 'MarkerSize', 5, 'MarkerFaceColor', 'blue', 'Color', 'black');
+
+% Graph Labels and Title
+xlabel('Number of Silicon-29 Nuclei');
+ylabel('Concentration in parts per million');
+%title('Concentration of Silicon Nuclei vs. Number of Nuclei');
+%grid on;
+
+% Display output
+fprintf('Concentration of 29Si (ppm):\n');
+disp(concentration_ppm);
+fprintf('Uncertainty in concentration (ppm):\n');
+disp(delta_concentration_ppm);
