@@ -1,0 +1,159 @@
+%This code computes a dot plot of the absorption spectra of 4 group V 
+%dopants in pepper and the energy levels of these dopants in levelsplot.
+% Clearing the workspace and closing figures
+clear;
+clc;
+close all;
+% Define the spin system for phosphorus-doped silicon
+% Electron spin S = 1/2, two nuclei (group V dopant and 29Si)
+%spins: 
+%phosphorus-31: I=1/2
+%antimony-121: I=5/2
+%arsenic-75: I=3/2
+%bismuth-209: I=9/2
+Exp.mwFreq = 36.9; % Microwave frequency in GHz (Q-band)
+Exp.Range = [1316, 1322]; % Magnetic field range in mT
+Exp.Temperature=5; % the temperature
+Exp.MolFrame = [0 0 0]*pi/180; % molecular frame
+Exp.CrystalSymmetry= 227; %defines diamond crystal structure of a silicon
+%crystal.
+Exp.SampleFrame = [0 0 0]; %frame of the sample
+Exp.mwMode = 'perpendicular'; %direction of detector wrt to magnetic field
+Exp.nPoints = 100000; %number of points taken in pepper
+Opt.Gaussian= 1; %linewidth type
+Opt.Harmonic=0; %absorption spectrum
+Opt.Intensity='on'; %computes all interactions
+% Define spin systems for different dopants in silicon
+% Phosphorus in Silicon
+Sys_P.HStrain=0.0; %linebroadenings
+Sys_P.gStrain= 0.0;
+Sys_P.AStrain=0.0;
+Sys_P.DStrain=0.0;
+Sys_P.S = 1/2;
+Sys_P.Nucs = '31P, 29Si';%using one phosphorus-31, 1 Silicon-29 model.
+Sys_P.g = 1.9985; % g-factor for phosphorus in silicon
+Sys_P.A = [117.5, 4]; % Hyperfine coupling constants in MHz for 31P and 29Si
+Sys_P.gFrame = [0 0 0]*pi/180; %alters the frame of the magnetic field orientation
+%in the molecular frame. This is all we can really do for the levelsplot.
+% Antimony in Silicon
+Sys_Sb.AStrain=0.0; %a sets of linewidth broadenings
+Sys_Sb.DStrain=0.0;
+Sys_Sb.HStrain=0.0;
+Sys_Sb.gStrain= 0.0;
+Sys_Sb.S = 1/2;
+Sys_Sb.Nucs = '121Sb, 29Si';
+Sys_Sb.g = 1.998; % Approximating the g-factor for antimony in silicon
+Sys_Sb.A = [1860, 4]; % Hyperfine coupling constants in MHz for 121Sb and 29Si
+Sys_Sb.gFrame = [0 0 0]*pi/180;
+% Bismuth in Silicon
+Sys_Bi.HStrain=0.0;
+Sys_Bi.gStrain=0.0;
+Sys_Bi.AStrain=0.0;
+Sys_Bi.DStrain=0.0;
+Sys_Bi.S = 1/2;
+Sys_Bi.Nucs = '209Bi, 29Si';
+Sys_Bi.g = 1.9985; % Approximate g-factor for bismuth in silicon
+Sys_Bi.A = [1475, 4]; % Hyperfine coupling constants in MHz for 209Bi and 29Si
+Sys_Bi.gFrame = [0 0 0]*pi/180;
+% Arsenic in Silicon
+Sys_As.HStrain=0.0;
+Sys_As.gStrain=0.0;
+Sys_As.AStrain=0.0;
+Sys_As.DStrain=0.0;
+Sys_As.S = 1/2;
+Sys_As.Nucs = '75As, 29Si';
+Sys_As.g = 1.999; % Approximate g-factor for arsenic in silicon
+Sys_As.A = [198, 4]; % Hyperfine coupling constants in MHz for 75As and 29Si
+Sys_As.gFrame = [0 0 0]*pi/180;
+% Simulate the EPR spectrum for each dopant
+[B_P, Spec_P] = pepper(Sys_P, Exp, Opt);
+[B_Sb, Spec_Sb] = pepper(Sys_Sb, Exp, Opt);
+[B_Bi, Spec_Bi] = pepper(Sys_Bi, Exp, Opt);
+[B_As, Spec_As] = pepper(Sys_As, Exp, Opt);
+% Plot the simulated absorption spectra with dots instead of lines
+figure;
+hold on;
+plot(B_P, Spec_P, 'LineStyle', 'none', 'Marker', '.', 'MarkerSize', 10, 'DisplayName', 'Phosphorus');
+plot(B_Sb, Spec_Sb, 'LineStyle', 'none', 'Marker', '.', 'MarkerSize', 10, 'DisplayName', 'Antimony');
+plot(B_Bi, Spec_Bi, 'LineStyle', 'none', 'Marker', '.', 'MarkerSize', 10, 'DisplayName', 'Bismuth');
+plot(B_As, Spec_As, 'LineStyle', 'none', 'Marker', '.', 'MarkerSize', 10, 'DisplayName', 'Arsenic');
+ylabel('Absorption');
+xlabel('Magnetic field [mT]');
+title('Absorption Spectra for Different Dopants in Silicon (Dots Only)');
+legend;
+grid on;
+hold off;
+% Define magnetic field range for energy level plot
+magfield = linspace(1316, 1322, 2000); % Magnetic field range for the levelsplot
+% Plot the energy levels for Phosphorus in Silicon
+figure('Position', [100, 100, 800, 600]);
+% Lower energy levels for Antimony
+subplot(2,1,1);
+levelsplot(Sys_P, 'z', magfield, Exp.mwFreq);
+%title('Energy Eigenvalues of the Spin Hamiltonian for an Phosphorus-31 in Silicon-29');
+ylabel('E [GHz]');
+xlabel('B [mT]');
+ylim([18.35 18.55]); % Adjust y-axis limits for the upper energy levels
+
+% Higher energy levels for Antimony
+subplot(2,1,2);
+levelsplot(Sys_P, 'z', magfield, Exp.mwFreq);
+ylabel('E [GHz]');
+xlabel('B [mT]');
+ylim([-18.55 -18.35]); % Adjust y-axis limits for the lower energy levels
+% going from the lowest limit to the highest energy limit.
+
+% Plot the energy levels for Antimony in Silicon with a split energy axis
+figure('Position', [100, 100, 800, 600]);
+% Lower energy levels for Antimony
+subplot(2,1,1); 
+levelsplot(Sys_Sb, 'z', magfield, Exp.mwFreq);
+title('Energy Eigenvalues of the Spin Hamiltonian for an Antimony-121 in Silicon');
+ylabel('Energy [GHz]');
+xlabel('Magnetic field [mT]');
+ylim([15 22]); % Adjust y-axis limits for the lower energy levels
+grid on;
+% Higher energy levels for Antimony
+subplot(2,1,2);
+levelsplot(Sys_Sb, 'z', magfield, Exp.mwFreq);
+ylabel('Energy [GHz]');
+xlabel('Magnetic field [mT]');
+ylim([-22 -15]); % Adjust y-axis limits for the higher energy levels
+grid on;
+% Plot the energy levels for Bismuth in Silicon with a split energy axis
+figure('Position', [100, 100, 800, 600]);
+% Lower energy levels for Bismuth
+subplot(2,1,1);
+levelsplot(Sys_Bi, 'z', magfield, Exp.mwFreq);
+title('Energy Eigenvalues of the Spin Hamiltonian for Bismuth in Silicon');
+ylabel('Energy [GHz]');
+xlabel('Magnetic field [mT]');
+ylim([3.314 3.324]); % Adjust y-axis limits for the lower energy levels
+grid on;
+% Higher energy levels for Bismuth
+subplot(2,1,2);
+levelsplot(Sys_Bi, 'z', magfield, Exp.mwFreq);
+ylabel('Energy [GHz]');
+xlabel('Magnetic field [mT]');
+ylim([-4.06 -4.05]); % Adjust y-axis limits for the higher energy levels
+grid on;
+% Plot the energy levels for Arsenic in Silicon with a split energy axis
+figure('Position', [100, 100, 800, 600]);
+% Lower energy levels for Arsenic
+subplot(2,1,1);
+levelsplot(Sys_As, 'z', magfield, Exp.mwFreq);
+title('Energy Eigenvalues of the Spin Hamiltonian for Arsenic in Silicon');
+ylabel('Energy [GHz]');
+xlabel('Magnetic field [mT]');
+ylim([0.145 0.151]); % Adjust y-axis limits for the lower energy levels
+grid on;
+% Higher energy levels for Arsenic
+subplot(2,1,2);
+levelsplot(Sys_As, 'z', magfield, Exp.mwFreq);
+ylabel('Energy [GHz]');
+xlabel('Magnetic field [mT]');
+ylim([-0.2485 -0.246]); % Adjust y-axis limits for the higher energy levels
+grid on;
+set(gcf, 'WindowButtonMotionFcn', ''); %stops the error message 
+%in the command window
+%end of code
