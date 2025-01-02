@@ -1,0 +1,143 @@
+clear;
+clc;
+close all;
+
+% Define the spin system as a function of the magnetic field
+Sys_P = @(B) struct('S', 1/2, 'g', 1.9985, 'Nucs', '209Bi, 29Si', ...
+                    'A', [1846, 4], 'B', B);
+
+%% Step 1: Coarse Calculation
+disp('Calculating coarse energy levels...');
+B_coarse = linspace(0, 2, 5000); % Coarse magnetic field range
+B_coarse = B_coarse(:); % Ensure B_coarse is a column vector
+
+Sys_coarse = Sys_P(B_coarse); % Evaluate the spin system for coarse B
+E_coarse = levels(Sys_coarse, [0 0]*pi/180, B_coarse); % Energy levels
+
+% Debugging checks
+disp('Size of B_coarse:');
+disp(size(B_coarse));
+disp('Size of E_coarse:');
+disp(size(E_coarse));
+
+%% Step 2: Detect Potential Anticrossings
+disp('Calculating derivatives to detect anticrossings...');
+[n_points, n_levels] = size(E_coarse);
+
+if n_points ~= length(B_coarse)
+    error('Number of rows in E_coarse does not match B_coarse.');
+end
+
+% Preallocate and calculate derivatives
+dE_dB = zeros(n_points - 1, n_levels);
+for i = 1:n_levels
+    dE_dB(:, i) = diff(E_coarse(:, i)) ./ diff(B_coarse); % Derivative for each level
+end
+
+% Midpoints of magnetic field range
+B_mid = B_coarse(1:end-1);
+
+% Threshold for detecting anticrossings
+threshold = 0.20e-4; % Adjust this value based on system sensitivity
+anticrossing_idx = []; % Initialize array for indices of anticrossings
+
+for i = 1:n_levels
+    idx = find(abs(dE_dB(:, i)) < threshold); % Find near-zero slope
+    anticrossing_idx = [anticrossing_idx; idx]; % Collect indices
+end
+
+anticrossing_idx = unique(anticrossing_idx); % Remove duplicates
+
+if isempty(anticrossing_idx)
+    disp('No anticrossings detected in the coarse range.');
+    return; % Exit if no anticrossings are found
+end
+
+% Narrowing down to regions of interest
+B_regions = B_mid(anticrossing_idx);
+disp('Detected potential anticrossing regions:');
+disp(B_regions);
+
+% Plotting the coarse derivatives
+max_derivative = 15; % Cap for |dE/dB|
+dE_dB(abs(dE_dB) > max_derivative) = NaN; % Cap large derivatives
+
+figure;
+plot(B_mid, abs(dE_dB), 'LineWidth', 1.5);
+xlabel('B [mT]');
+ylabel('|dE/dB| (MHz/mT)');
+%title('Derivative of Energy Levels');
+ylim([0, max_derivative]);
+%grid on;
+
+% Clear unused variables
+clear dE_dB B_mid;
+
+%% Step 3: Refine Regions Around Detected Anticrossings
+refined_step = 1e-5; % Smaller step size for refinement
+window_size = 0.5; % Wider refinement window
+B_refined_all = [];
+E_refined_all = [];
+
+disp('Refining energy levels around detected anticrossings...');
+for i = 1:length(B_regions)
+    B_center = B_regions(i);
+    B_refined = (B_center - window_size):refined_step:(B_center + window_size);
+
+    Sys_refined = Sys_P(B_refined);
+    E_refined = levels(Sys_refined, [0 0]*pi/180, B_refined);
+
+    % Append magnetic field points and energy levels
+    B_refined_all = [B_refined_all; B_refined(:)];
+    if isempty(E_refined_all)
+        E_refined_all = E_refined;
+    else
+        if size(E_refined_all, 2) == size(E_refined, 2)
+            E_refined_all = [E_refined_all; E_refined];
+        else
+            error('Dimension mismatch between E_refined_all and E_refined.');
+        end
+    end
+end
+
+% Check dimensions
+if size(E_refined_all, 1) ~= length(B_refined_all)
+    error('Mismatch between number of magnetic field points and energy levels.');
+end
+
+% Derivative calculation
+[n_points_refined, n_levels_refined] = size(E_refined_all);
+dE_dB_refined = zeros(n_points_refined - 1, n_levels_refined);
+
+for i = 1:n_levels_refined
+    dE_dB_refined(:, i) = diff(E_refined_all(:, i)) ./ diff(B_refined_all);
+end
+
+% Midpoints of the refined magnetic field range
+B_mid_refined = B_refined_all(1:end-1);
+
+% Filter for magnetic field range [0, 0.5]
+range_idx = (B_mid_refined >= 0) & (B_mid_refined <= 0.5);
+B_mid_refined = B_mid_refined(range_idx);
+dE_dB_refined = dE_dB_refined(range_idx, :);
+
+% Define colors for energy levels
+customColors = lines(n_levels_refined); % Use MATLAB's "lines" colormap for custom colors
+
+% Plot refined derivatives (restricted magnetic field range)
+figure;
+hold on;
+for i = 1:n_levels_refined
+    plot(B_mid_refined, dE_dB_refined(:, i), 'DisplayName', ['Level ' num2str(i)], ...
+         'Color', customColors(i, :), 'LineWidth', 1.5); % Assign custom colors
+end
+hold off;
+
+xlabel('B [mT]');
+ylabel('dE/dB (MHz/mT)');
+%title('dE/dB vs. Magnetic Field for Refined Data (0 to 0.5 mT)');
+legend('show', 'Location', 'best');
+%grid on;
+
+% End of code
+
