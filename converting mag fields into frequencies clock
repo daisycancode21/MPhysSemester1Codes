@@ -1,0 +1,108 @@
+clear;
+clc;
+close all;
+
+% Define the spin system
+Sys.S = 1/2;               % Electron spin
+Sys.g = 1.9985;            % g-factor
+Sys.Nucs = '31P, 29Si';    % Nuclei
+Sys.A = [117.5, 4];        % Hyperfine coupling constants in MHz
+
+% Magnetic field range (mT)
+B = 0:0.000001:2; % Magnetic field in mT
+
+% Orientation (phi, theta in radians)
+Ori = [0 0]*pi/180;
+
+% Calculate energy levels (in MHz)
+E = levels(Sys, Ori, B); % Energy levels are returned in MHz
+
+% Plot energy levels
+clf;
+plot(B, E);
+xlabel('Magnetic Field (mT)');
+ylabel('Energy (MHz)'); % Correct unit
+title('Energy Levels vs Magnetic Field');
+grid on;
+
+% Determine size of energy levels matrix
+[m, n] = size(E); % m: number of magnetic field values, n: number of energy levels
+
+% Initialize cell array to store clock transition fields
+clockFields = cell(1, n); % One cell for each energy level
+
+% Identify clock transitions for each energy level
+for ii = 1:n
+    % Find inflection points (clock transitions)
+    index_clock = find(abs(diff(sign(diff(E(:, ii))))) > 0);
+    if ~isempty(index_clock)
+        % Store the magnetic field values corresponding to the transitions
+        clockFields{ii} = B(index_clock);
+    else
+        % No transitions found, assign an empty array
+        clockFields{ii} = [];
+    end
+end
+
+% Display clock transition magnetic fields with high precision
+disp('Clock Transition Fields (mT) for each energy level:');
+for ii = 1:n
+    fprintf('Energy level %d: ', ii);
+    if ~isempty(clockFields{ii})
+        fprintf('%.6f ', clockFields{ii}); % Increased precision
+    else
+        fprintf('None');
+    end
+    fprintf('\n');
+end
+
+% Experimental frequency in GHz
+exp_freq_ghz = 9.5; % Example experimental frequency
+exp_freq_mhz = exp_freq_ghz * 1000; % Convert to MHz for comparison with energy levels
+
+% Loop through each energy level
+for ii = 1:n
+    % Skip if no clock transitions were found for this energy level
+    if isempty(clockFields{ii})
+        fprintf('No clock transitions for Energy Level %d.\n', ii);
+        continue; % Skip to the next energy level
+    end
+
+    fprintf('Processing Energy Level %d with transitions:\n', ii);
+    fprintf('%.6f ', clockFields{ii}); % Increased precision
+    fprintf('\n');
+
+    % Loop through each clock transition for the current energy level
+    for jj = 1:length(clockFields{ii})
+        % Find the closest magnetic field index in B
+        [~, idx_B] = min(abs(B - clockFields{ii}(jj))); 
+
+        % Validate the result (check if index is valid and within bounds)
+        if isempty(idx_B) || idx_B < 1 || idx_B > length(B)
+            warning('Index for clock field %.6f mT is out of bounds.', clockFields{ii}(jj));
+            continue; % Skip this clock transition
+        end
+
+        % Extract and display the energy levels at this magnetic field
+        fprintf('Clock transition at %.6f mT involves energy levels:\n', clockFields{ii}(jj));
+        fprintf('%.6f ', E(idx_B, :)); % Display all energy levels in MHz
+        fprintf('\n');
+
+        % Calculate and display energy differences for transitions
+        for level1 = 1:size(E, 2)
+            for level2 = level1+1:size(E, 2)
+                delta_E = abs(E(idx_B, level1) - E(idx_B, level2)); % Energy difference in MHz
+
+                % Check if this transition matches the experimental frequency
+                if abs(delta_E - exp_freq_mhz) < 1e-3 % Tolerance in MHz
+                    fprintf('    MATCH: Transition between Level %d and Level %d matches experimental frequency %.6f GHz.\n', ...
+                            level1, level2, exp_freq_ghz);
+                else
+                    fprintf('    Transition between Level %d and Level %d: %.6f MHz (%.6f GHz).\n', ...
+                            level1, level2, delta_E, delta_E / 1000); % Increased precision
+                end
+            end
+        end
+    end
+end
+
